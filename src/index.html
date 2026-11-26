@@ -27,7 +27,7 @@
 :root{
   --bg:#0a0b0d; --panel:#0f1113; --panel-2:#131619; --raise:#171b1f;
   --line:rgba(255,255,255,.075); --line-2:rgba(255,255,255,.13);
-  --text:#eef0f3; --dim:#8b9099; --dim-2:#5c626b;
+  --text:#eef0f3; --dim:#9aa0a8; --dim-2:#7b828c;
   --gold:#e4b363; --green:#4ecb8d; --red:#e4574c; --blue:#5b9dff; --amber:#f0a44a; --violet:#9e8cff;
 
   --ease-out:cubic-bezier(.23,1,.32,1);
@@ -244,6 +244,13 @@ footer .spacer{flex:1}
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
+<noscript>
+  <div class="wrap" style="padding:20px 24px;border-bottom:1px solid var(--line);color:var(--dim);font-size:13px">
+    This dashboard draws its figures client-side from a snapshot built on <b>__ASOF__ UTC</b>.
+    With JavaScript off you can read the same numbers in
+    <a href="https://github.com/arrijalu/taskmarket-live/blob/main/data/market.json" style="text-decoration:underline">data/market.json</a>.
+  </div>
+</noscript>
 
 <header class="bar">
   <div class="wrap">
@@ -256,7 +263,7 @@ footer .spacer{flex:1}
       <a href="#flow">Flow</a><a href="#pulse">Pulse</a><a href="#velocity">Velocity</a>
       <a href="#who">Posters</a><a href="#comp">Competition</a><a href="#heat">Hours</a><a href="#methods">Methods</a>
     </nav>
-    <span class="asof" id="asof"><span class="dot" aria-hidden="true"></span><span id="asof-t">data as of —</span></span>
+    <span class="asof" id="asof"><span class="dot" aria-hidden="true"></span><span id="asof-t">data as of __ASOF__ UTC</span></span>
   </div>
 </header>
 

@@ -368,7 +368,10 @@ await writeFile(path.join(ROOT, 'data', 'market.json'), JSON.stringify(payload))
 
 // ---------- render ----------
 const tpl = await readFile(path.join(ROOT, 'src', 'index.html'), 'utf8');
-const html = tpl.replace('/*__DATA__*/null', JSON.stringify(payload));
+const asof = now.toISOString().slice(0, 16).replace('T', ' ');
+const html = tpl
+  .replace('/*__DATA__*/null', JSON.stringify(payload))
+  .replaceAll('__ASOF__', asof);
 await writeFile(path.join(OUT_DIR, 'index.html'), html);
 
 const kb = (s) => (Buffer.byteLength(s) / 1024).toFixed(1) + ' kB';
