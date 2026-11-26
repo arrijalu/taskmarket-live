@@ -857,9 +857,11 @@ $('#statuses').innerHTML = statusOrder.filter((s) => D.status[s]).map((s) => `
   </div>`).join('');
 const SN = D.statusNote;
 if (SN && SN.openRows) {
+  const reconciles = SN.openRows - SN.openPastExpiry === SN.statsOpen;
   $('#status-note').textContent =
-    `The stats endpoint reports ${fmt(SN.statsOpen)} open tasks; the task list returns ${fmt(SN.openRows)} rows still marked open, ` +
-    `${fmt(SN.openPastExpiry)} of them already past their expiry date. The API does not reconcile the two, so both numbers are shown rather than one being picked.`;
+    `Two open counts, both true: the stats endpoint reports ${fmt(SN.statsOpen)} open tasks; the task list returns ${fmt(SN.openRows)} rows still marked open, ` +
+    `${fmt(SN.openPastExpiry)} of them past their expiry date` +
+    (reconciles ? ` — the gap is exactly those expired-but-unclosed rows.` : `. The API does not reconcile the two, so both are shown.`);
 }
 $('#tiers').innerHTML = D.tiers.filter((t) => t.count).map((t) => `
   <div class="row" style="grid-template-columns:1fr auto auto">
