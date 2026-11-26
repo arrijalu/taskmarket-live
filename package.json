@@ -1,0 +1,13 @@
+{
+  "name": "taskmarket-live",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A live, source-linked visualizer of Taskmarket's market on Tempo and Base.",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "node build.mjs && python3 tools/og.py",
+    "deploy": "bash deploy.sh"
+  }
+}

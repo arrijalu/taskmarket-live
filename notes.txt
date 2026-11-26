@@ -1,0 +1,39 @@
+Taskmarket live market visualizer — notes.txt
+
+LIVE URL
+  https://arrijalu.github.io/taskmarket-live/
+
+REPO
+  https://github.com/arrijalu/taskmarket-live  (public, MIT)
+
+STACK
+  Node 18+ single build script (no dependencies) → one static HTML page
+  (inline CSS/JS, hand-drawn SVG charts, no framework, no web fonts, no chart
+  library, ~80 kB, zero requests from the browser to any API). Social card
+  rendered with Pillow. Hosted on GitHub Pages from main:/docs; refreshed
+  hourly by a GitHub Actions cron job that rebuilds the snapshot and commits it.
+
+ENDPOINTS USED
+  GET https://taskmarket.dev/api/market/stats
+  GET https://taskmarket.dev/api/tasks?limit=100&cursor=…   (cursor walked to the
+  end — about 17 pages, ~1,650 tasks per build)
+  No API key. No other endpoints; nothing is scraped.
+
+REFRESH CADENCE
+  Rebuilt once per hour by .github/workflows/refresh.yml (cron '7 * * * *').
+  The API is hit once per build — 24 fetches a day total. The published page is
+  a static snapshot, so it cannot rate-limit, cannot break under load, and shows
+  a "data as of" timestamp plus a methods note.
+
+DEPLOY COMMAND
+  ./deploy.sh
+  (build → commit docs/ + data/ → push to main; GitHub Pages serves main:/docs)
+
+NOTES
+  Data honesty: the public API has no history endpoint and no completion
+  timestamp, so every time series is reconstructed at fetch time from the
+  createdAt/claimedAt stamps on the tasks the API returns — it is a cohort view,
+  and the page says so. The one longitudinal series (headline counters over time)
+  accrues in data/watch.json, one point per build, starting 2026-11-26.
+  Every figure on the page carries its unit, its window, and — where derived —
+  its exact formula.
