@@ -399,6 +399,7 @@ footer .spacer{flex:1}
       <div>
         <p class="eyebrow" style="margin:0 0 12px">Tasks by status</p>
         <div class="rows" id="statuses"></div>
+        <p style="color:var(--dim-2);font-size:12px;margin:10px 0 0;line-height:1.5" id="status-note"></p>
         <p class="eyebrow" style="margin:22px 0 12px">Median claim latency by reward tier</p>
         <div class="rows" id="tiers"></div>
       </div>
@@ -518,7 +519,7 @@ const fmt = (n, d = 0) => (n == null || Number.isNaN(n)) ? '—'
 const compact = (n) => n == null ? '—' : n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'k' : fmt(n);
 const ousd = (v) => (v == null ? '—' : fmt(v, v < 10 ? 2 : v < 1000 ? 1 : 0)) + ' OUSD';
 const pctf = (v) => (v == null ? '—' : (v >= 10 ? Math.round(v) : v.toFixed(1)) + '%');
-const hours = (h) => h == null ? '—' : h < 1 / 60 ? Math.round(h * 3600) + 's'
+const hours = (h) => h == null ? '—' : h * 60 < 1 ? '<1m' : h < 1 / 60 ? Math.round(h * 3600) + 's'
   : h < 1 ? Math.round(h * 60) + 'm' : h < 48 ? (h < 10 ? h.toFixed(1) : Math.round(h)) + 'h' : Math.round(h / 24) + 'd';
 const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const iso = (s) => new Date(s);
@@ -790,7 +791,7 @@ $('#latency-bars').innerHTML = V.hist.map((n, i) => `
 $('#mode-latency').innerHTML = V.byMode.map((m) => `
   <div class="row" style="grid-template-columns:1fr auto auto;gap:14px">
     <span class="nm"><b>${m.mode}</b></span>
-    <span class="num">${fmt(m.n)} claims</span>
+    <span class="num">${fmt(m.n)} ${m.n === 1 ? 'claim' : 'claims'}</span>
     <span class="num" style="color:var(--text)">${hours(m.medianH)}</span>
   </div>`).join('');
 
@@ -834,12 +835,19 @@ $('#modes').innerHTML = D.mode.map((m) => `
     <span class="num">${ousd(m.ousd)}</span>
     <span class="num" style="color:var(--dim-2)">median ${ousd(m.median)}</span>
   </div>`).join('');
+const chainNote = (() => {
+  const by = Object.fromEntries(D.chain.map((c) => [c.chain, c]));
+  const b = by[8453], tp = by[4217];
+  if (!b || !tp || !tp.ousd) return '';
+  const ratio = (b.ousd / tp.ousd).toFixed(1);
+  return `Base carries ${ratio}× Tempo's committed OUSD on ${Math.round((1 - b.count / tp.count) * 100)}% fewer tasks — the money is not where the task count is.`;
+})();
 $('#chains').innerHTML = D.chain.map((c) => `
   <div class="row" style="grid-template-columns:1fr auto auto">
     <span class="nm"><b>${c.chain === 4217 ? 'Tempo' : c.chain === 8453 ? 'Base' : 'chain ' + c.chain}</b> <span class="mono" style="color:var(--dim-2)">${c.chain}</span></span>
     <span class="num">${fmt(c.count)} tasks</span>
     <span class="num" style="color:var(--text)">${ousd(c.ousd)}</span>
-  </div>`).join('');
+  </div>`).join('') + (chainNote ? `<p style="color:var(--dim-2);font-size:12px;margin:10px 0 0;line-height:1.5">${chainNote}</p>` : '');
 const statusOrder = ['completed', 'open', 'claimed', 'pending_approval', 'cancelled', 'expired'];
 const stTotal = Object.values(D.status).reduce((a, b) => a + b, 0) || 1;
 $('#statuses').innerHTML = statusOrder.filter((s) => D.status[s]).map((s) => `
@@ -847,6 +855,12 @@ $('#statuses').innerHTML = statusOrder.filter((s) => D.status[s]).map((s) => `
     <span class="nm"><span class="tag ${s}">${s.replace('_', ' ')}</span></span>
     <span class="num" style="color:var(--text)">${fmt(D.status[s])} <span style="color:var(--dim-2)">${pctf((D.status[s] / stTotal) * 100)}</span></span>
   </div>`).join('');
+const SN = D.statusNote;
+if (SN && SN.openRows) {
+  $('#status-note').textContent =
+    `The stats endpoint reports ${fmt(SN.statsOpen)} open tasks; the task list returns ${fmt(SN.openRows)} rows still marked open, ` +
+    `${fmt(SN.openPastExpiry)} of them already past their expiry date. The API does not reconcile the two, so both numbers are shown rather than one being picked.`;
+}
 $('#tiers').innerHTML = D.tiers.filter((t) => t.count).map((t) => `
   <div class="row" style="grid-template-columns:1fr auto auto">
     <span class="nm mono">${t.label} OUSD</span>

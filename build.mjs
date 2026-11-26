@@ -347,6 +347,12 @@ const payload = {
     hhi,
   },
   status: byStatus,
+  statusNote: {
+    openRows: byStatus.open || 0,
+    openPastExpiry: tasks.filter((x) => x.status === 'open' && x.expiryTime && new Date(x.expiryTime) <= now).length,
+    openFutureExpiry: tasks.filter((x) => x.status === 'open' && x.expiryTime && new Date(x.expiryTime) > now).length,
+    statsOpen: stats.openTasks ?? null,
+  },
   mode: Object.entries(byMode).map(([m, e]) => ({ mode: m, count: e.count, ousd: r2(e.ousd), median: r2(median(e.rewards) || 0) })).sort((a, b) => b.count - a.count),
   chain: Object.entries(byChain).map(([c, e]) => ({ chain: Number(c), count: e.count, ousd: r2(e.ousd) })).sort((a, b) => b.count - a.count),
   fee: {
