@@ -374,4 +374,4 @@ await writeFile(path.join(OUT_DIR, 'index.html'), html);
 const kb = (s) => (Buffer.byteLength(s) / 1024).toFixed(1) + ' kB';
 console.log(`fetched ${tasks.length} tasks over ${pages} pages`);
 console.log(`committed ${r2(committed)} OUSD · paid ${r2(paid)} OUSD · escrow ${r2(escrow)} OUSD`);
-console.log(`wrote data/market.json ${kb(JSON.stringify(payload))} and site/index.html ${kb(html)}`);
+console.log(`wrote data/market.json ${kb(JSON.stringify(payload))} and docs/index.html ${kb(html)}`);
