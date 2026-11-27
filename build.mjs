@@ -164,14 +164,18 @@ function bump(map, key, t) {
   if (t.status === 'completed') { e.completed++; e.paid += Number(t.netReward || t.reward) / OUSD; }
   map.set(key, e);
 }
+// a claim belongs on the bucket of the day/hour it happened, not the bucket of the posting
+function bumpClaim(map, key) {
+  const e = map.get(key) || { k: key, created: 0, claims: 0, ousd: 0, paid: 0, agents: new Set(), completed: 0 };
+  e.claims++;
+  map.set(key, e);
+}
 for (const t of tasks) {
   bump(dayMap, dayKey(ts(t.createdAt)), t);
   bump(hourMap, hourKey(ts(t.createdAt)), t);
   if (t.claimedAt) {
-    const hk = hourKey(ts(t.claimedAt));
-    const e = hourMap.get(hk) || { k: hk, created: 0, claims: 0, ousd: 0, paid: 0, agents: new Set(), completed: 0 };
-    e.claims++;
-    hourMap.set(hk, e);
+    bumpClaim(dayMap, dayKey(ts(t.claimedAt)));
+    bumpClaim(hourMap, hourKey(ts(t.claimedAt)));
   }
 }
 const firstDay = new Date(Math.min(...tasks.map((t) => ts(t.createdAt))));
@@ -268,23 +272,44 @@ function rangeAgg(sinceMs) {
     else if (t.primaryAward && t.primaryAward.workerAddress) working.add(t.primaryAward.workerAddress);
   }
   const done = inR.filter((t) => t.status === 'completed');
+  // "claims made" = claims that happened inside the window, regardless of when the task was posted —
+  // the same rule the day/hour bars draw, so the caption and the bars can never disagree.
+  const claimsInWindow = tasks.filter((t) => t.claimedAt && ts(t.claimedAt) >= sinceMs).length;
   return {
+    since: new Date(sinceMs).toISOString(),
     posted: inR.length,
     committed: r2(sum(inR.map((t) => val(t)))),
     completed: done.length,
     paid: r2(sum(done.map((t) => Number(t.netReward || t.reward) / OUSD))),
-    claims: inR.filter((t) => t.claimedAt).length,
+    claims: claimsInWindow,
     agentsPosting: posting.size,
     agentsWorking: working.size,
     modes: Object.entries(inR.reduce((a, t) => ((a[t.mode] = (a[t.mode] || 0) + 1), a), {})).sort((a, b) => b[1] - a[1]),
   };
 }
+// Each range starts exactly on the first bucket the chart draws for it, so
+// sum(bars) === range total by construction, not by luck.
+const HOURMS = 36e5, DAYMS = 864e5;
+const floorHour = (ms) => { const d = new Date(ms); d.setUTCMinutes(0, 0, 0); return d.getTime(); };
+const floorDay = (ms) => { const d = new Date(ms); d.setUTCHours(0, 0, 0, 0); return d.getTime(); };
 const ranges = {
-  '24H': rangeAgg(now.getTime() - 24 * 36e5),
-  '7D': rangeAgg(now.getTime() - 7 * 864e5),
-  '30D': rangeAgg(now.getTime() - 30 * 864e5),
+  '24H': rangeAgg(floorHour(now.getTime()) - 23 * HOURMS),
+  '7D': rangeAgg(floorDay(now.getTime()) - 6 * DAYMS),
+  '30D': rangeAgg(floorDay(now.getTime()) - 29 * DAYMS),
   ALL: rangeAgg(0),
 };
+
+// ---------- reconcile the bars against the range totals (fail the build, not the page) ----------
+const barSum = (series, n, field) => series.slice(-n).reduce((a, p) => a + p[field], 0);
+const seriesCheck = {
+  '24H': [barSum(hourSeries, 24, 'claims'), ranges['24H'].claims, barSum(hourSeries, 24, 'created'), ranges['24H'].posted],
+  '7D': [barSum(daySeries, 7, 'claims'), ranges['7D'].claims, barSum(daySeries, 7, 'created'), ranges['7D'].posted],
+  '30D': [barSum(daySeries, 30, 'claims'), ranges['30D'].claims, barSum(daySeries, 30, 'created'), ranges['30D'].posted],
+  ALL: [barSum(daySeries, daySeries.length, 'claims'), ranges.ALL.claims, barSum(daySeries, daySeries.length, 'created'), ranges.ALL.posted],
+};
+for (const [r, [barC, totC, barP, totP]] of Object.entries(seriesCheck)) {
+  if (barC !== totC || barP !== totP) throw new Error(`series does not reconcile for ${r}: claims ${barC} vs ${totC}, posted ${barP} vs ${totP}`);
+}
 
 // ---------- payload ----------
 const payload = {
@@ -298,6 +323,8 @@ const payload = {
     newestTask: new Date(Math.max(...tasks.map((t) => ts(t.createdAt)))).toISOString(),
     watchSince: watch[0] ? watch[0].t : now.toISOString(),
     watchPoints: watch.length,
+    refresh: 'on-box cron, hourly at :07 (backup: GitHub Actions schedule)',
+    seriesCheck,
   },
   headline: {
     registeredWorkers: stats.registeredWorkers ?? null,
@@ -379,8 +406,16 @@ const html = tpl
   .replace('/*__DATA__*/null', JSON.stringify(payload))
   .replaceAll('__ASOF__', asof);
 await writeFile(path.join(OUT_DIR, 'index.html'), html);
+await writeFile(path.join(OUT_DIR, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://arrijalu.github.io/taskmarket-live/</loc><lastmod>${now.toISOString().slice(0, 10)}</lastmod><changefreq>hourly</changefreq><priority>1.0</priority></url>
+</urlset>
+`);
 
 const kb = (s) => (Buffer.byteLength(s) / 1024).toFixed(1) + ' kB';
 console.log(`fetched ${tasks.length} tasks over ${pages} pages`);
 console.log(`committed ${r2(committed)} OUSD · paid ${r2(paid)} OUSD · escrow ${r2(escrow)} OUSD`);
+for (const [r, [barC, totC, barP, totP]] of Object.entries(seriesCheck)) {
+  console.log(`reconcile ${r}: bars ${barC} claims = range ${totC} · bars ${barP} posted = range ${totP}`);
+}
 console.log(`wrote data/market.json ${kb(JSON.stringify(payload))} and docs/index.html ${kb(html)}`);

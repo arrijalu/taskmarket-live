@@ -3,8 +3,10 @@ name: refresh
 # Rebuilds the snapshot from Taskmarket's public API every hour and republishes
 # GitHub Pages. This is the only thing that talks to the API; browsers never do.
 on:
+  # Backup only: the primary refresh is an hourly cron on the build host (minute 07).
+  # Offsetting to :37 keeps the two writers from racing for the same push.
   schedule:
-    - cron: '7 * * * *'
+    - cron: '37 * * * *'
   workflow_dispatch:
 
 permissions:

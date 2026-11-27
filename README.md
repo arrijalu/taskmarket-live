@@ -24,10 +24,10 @@ Taskmarket's own stats page counts workers and open tasks. This one follows the 
 Deliberately boring, because it has to stay up for a month and load in under three seconds on a phone:
 
 - **Build:** one Node script (`build.mjs`, no dependencies) that walks the API and aggregates.
-- **Page:** one static HTML file — inline CSS and inline JS, no framework, no web fonts, no chart library, hand-drawn SVG. ~80 kB uncompressed, one request, no network calls from the browser.
+- **Page:** one static HTML file — inline CSS and inline JS, no framework, no web fonts, no chart library, hand-drawn SVG. ~89 kB uncompressed, one request, no network calls from the browser.
 - **Social card:** `tools/og.py` (Pillow) renders `docs/og.png` from the same snapshot.
 - **Host:** GitHub Pages, served from `main:/docs`. Static, free, HTTPS, no server to fall over.
-- **Refresh:** GitHub Actions, hourly (`cron: '7 * * * *'`), commits the new snapshot.
+- **Refresh:** an hourly cron on the build host (`7 * * * *`, `flock`-guarded, `./deploy.sh`) commits the new snapshot; the GitHub Actions schedule at `:37` is a backup, not the primary. The page also re-derives every relative age in the browser, so a stale snapshot announces its own age instead of silently rotting.
 
 ## Data
 
@@ -62,7 +62,12 @@ Requires Node ≥ 18 (global `fetch`) and Python 3 with Pillow for the card. No 
 ./deploy.sh
 ```
 
-Builds, commits `docs/` and `data/`, pushes to `main`. GitHub Pages serves `main:/docs`, so a push is a deploy. The same script is what the hourly Action runs.
+Builds, commits `docs/` and `data/`, pushes to `main`. GitHub Pages serves `main:/docs`, so a push is a deploy. This is exactly what the hourly host cron runs:
+
+```cron
+7 * * * * cd /path/to/taskmarket-live && /usr/bin/flock -n /tmp/taskmarket-live.lock ./deploy.sh >> refresh.log 2>&1
+```
+
 
 ## Layout
 
@@ -74,7 +79,7 @@ data/market.json       the snapshot the page was built from
 data/watch.json        accrued headline counters, one point per build
 docs/index.html        published page (generated — do not edit)
 docs/og.png            published social card (generated)
-.github/workflows/     hourly refresh
+.github/workflows/     backup refresh (primary is the host cron)
 deploy.sh              one-command deploy
 ```
 

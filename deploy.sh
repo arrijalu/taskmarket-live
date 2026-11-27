@@ -13,5 +13,7 @@ if git diff --cached --quiet; then
 fi
 
 git commit -m "data: refresh $(date -u +%Y-%m-%dT%H:%MZ)"
+# the Action backup may have pushed since our last fetch — rebase before pushing
+git pull --rebase --no-edit origin main >/dev/null 2>&1 || true
 git push origin main
 echo "deployed → https://arrijalu.github.io/taskmarket-live/"

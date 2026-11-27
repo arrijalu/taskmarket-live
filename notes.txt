@@ -9,18 +9,22 @@ REPO
 STACK
   Node 18+ single build script (no dependencies) → one static HTML page
   (inline CSS/JS, hand-drawn SVG charts, no framework, no web fonts, no chart
-  library, ~80 kB, zero requests from the browser to any API). Social card
+  library, ~89 kB, zero requests from the browser to any API). Social card
   rendered with Pillow. Hosted on GitHub Pages from main:/docs; refreshed
-  hourly by a GitHub Actions cron job that rebuilds the snapshot and commits it.
+  hourly by a cron job on the build host (minute 07, flock-guarded, runs
+  ./deploy.sh and pushes), with the GitHub Actions schedule at :37 as backup.
 
 ENDPOINTS USED
   GET https://taskmarket.dev/api/market/stats
   GET https://taskmarket.dev/api/tasks?limit=100&cursor=…   (cursor walked to the
-  end — about 17 pages, ~1,650 tasks per build)
+  end — about 22 pages, ~2,180 tasks per build)
   No API key. No other endpoints; nothing is scraped.
 
 REFRESH CADENCE
-  Rebuilt once per hour by .github/workflows/refresh.yml (cron '7 * * * *').
+  Rebuilt once per hour by host cron (07 * * * *, flock-guarded deploy.sh);
+  .github/workflows/refresh.yml (cron '37 * * * *') is a backup writer.
+  Relative ages on the page are recomputed in the browser every 30 s and the
+  header chip goes amber if the snapshot is older than one build cycle.
   The API is hit once per build — 24 fetches a day total. The published page is
   a static snapshot, so it cannot rate-limit, cannot break under load, and shows
   a "data as of" timestamp plus a methods note.
